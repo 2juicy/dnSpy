@@ -88,8 +88,8 @@ namespace dnSpy.MainApp {
 		readonly List<LoadedExtension> loadedExtensions = new List<LoadedExtension>();
 		readonly IAppCommandLineArgs args;
 		ExportProvider? exportProvider;
-#if NETCOREAPP
-		readonly NetCoreAssemblyLoader netCoreAssemblyLoader = new NetCoreAssemblyLoader(System.Runtime.Loader.AssemblyLoadContext.Default);
+#if NET
+		readonly DotNetAssemblyLoader dotNetAssemblyLoader = new DotNetAssemblyLoader(System.Runtime.Loader.AssemblyLoadContext.Default);
 #endif
 
 		Task<ExportProvider> initializeMEFTask;
@@ -159,7 +159,7 @@ namespace dnSpy.MainApp {
 		}
 
 		IExportProviderFactory? TryCreateExportProviderFactoryCachedCore(Resolver resolver, out long resourceManagerTokensOffset) {
-			Debug2.Assert(!(mefAssemblies is null));
+			Debug2.Assert(mefAssemblies is not null);
 			resourceManagerTokensOffset = -1;
 			var filename = GetCachedCompositionConfigurationFilename();
 			if (!File.Exists(filename))
@@ -213,7 +213,7 @@ namespace dnSpy.MainApp {
 
 		bool writingCachedMefFile;
 		async Task SaveMefStateAsync(CompositionConfiguration config) {
-			Debug2.Assert(!(mefAssemblies is null));
+			Debug2.Assert(mefAssemblies is not null);
 			string filename = GetCachedCompositionConfigurationFilename();
 			bool fileCreated = false;
 			bool deleteFile = true;
@@ -253,7 +253,7 @@ namespace dnSpy.MainApp {
 		}
 
 		void UpdateResourceManagerTokens() {
-			Debug2.Assert(!(mefAssemblies is null));
+			Debug2.Assert(mefAssemblies is not null);
 			var tokensOffset = resourceManagerTokensOffset;
 			if (tokensOffset < 0)
 				return;
@@ -282,8 +282,8 @@ namespace dnSpy.MainApp {
 		}
 
 		Assembly[] GetAssemblies() {
-#if NETCOREAPP
-			netCoreAssemblyLoader.AddSearchPath(AppDirectories.BinDirectory);
+#if NET
+			dotNetAssemblyLoader.AddSearchPath(AppDirectories.BinDirectory);
 #endif
 			var list = new List<Assembly>();
 			list.Add(GetType().Assembly);
@@ -318,9 +318,9 @@ namespace dnSpy.MainApp {
 			// "Understanding Background JIT compilation -> What can go wrong with background JIT compilation"
 			// in the PerfView docs for more info.
 			var files = unsortedFiles.OrderBy(a => a, StringComparer.OrdinalIgnoreCase).ToArray();
-#if NETCOREAPP
+#if NET
 			foreach (var file in files)
-				netCoreAssemblyLoader.AddSearchPath(Path.GetDirectoryName(file)!);
+				dotNetAssemblyLoader.AddSearchPath(Path.GetDirectoryName(file)!);
 #endif
 			var asms = new List<Assembly>();
 			foreach (var file in files) {
@@ -475,12 +475,12 @@ namespace dnSpy.MainApp {
 		}
 
 		void MainWindow_SourceInitialized(object? sender, EventArgs e) {
-			Debug2.Assert(!(appWindow is null));
+			Debug2.Assert(appWindow is not null);
 			appWindow.MainWindow.SourceInitialized -= MainWindow_SourceInitialized;
 
 			var hwndSource = PresentationSource.FromVisual(appWindow.MainWindow) as HwndSource;
-			Debug2.Assert(!(hwndSource is null));
-			if (!(hwndSource is null))
+			Debug2.Assert(hwndSource is not null);
+			if (hwndSource is not null)
 				hwndSource.AddHook(WndProc);
 		}
 
@@ -489,7 +489,7 @@ namespace dnSpy.MainApp {
 			dsLoaderService?.Save();
 			try {
 				var settingsService = exportProvider?.GetExportedValue<SettingsService>();
-				if (!(settingsService is null))
+				if (settingsService is not null)
 					new XmlSettingsWriter(settingsService).Write();
 			}
 			catch {
@@ -508,12 +508,12 @@ namespace dnSpy.MainApp {
 		void FixEditorContextMenuStyle() {
 			var module = typeof(ContextMenu).Module;
 			var type = module.GetType("System.Windows.Documents.TextEditorContextMenu+EditorContextMenu", false, false);
-			Debug2.Assert(!(type is null));
+			Debug2.Assert(type is not null);
 			if (type is null)
 				return;
 			const string styleKey = "EditorContextMenuStyle";
 			var style = Resources[styleKey];
-			Debug2.Assert(!(style is null));
+			Debug2.Assert(style is not null);
 			if (style is null)
 				return;
 			Resources.Remove(styleKey);
@@ -571,16 +571,16 @@ namespace dnSpy.MainApp {
 		static void ShowElapsedTime(Stopwatch sw) => MsgBox.Instance.Show($"{sw.ElapsedMilliseconds} ms, {sw.ElapsedTicks} ticks");
 
 		void HandleAppArgs(IAppCommandLineArgs appArgs) {
-			Debug2.Assert(!(exportProvider is null));
-			Debug2.Assert(!(appWindow is null));
+			Debug2.Assert(exportProvider is not null);
+			Debug2.Assert(appWindow is not null);
 			if (appArgs.Activate && appWindow.MainWindow.WindowState == WindowState.Minimized)
 				WindowUtils.SetState(appWindow.MainWindow, WindowState.Normal);
 
 			var decompiler = GetDecompiler(appArgs.Language);
-			if (!(decompiler is null))
+			if (decompiler is not null)
 				exportProvider.GetExportedValue<IDecompilerService>().Decompiler = decompiler;
 
-			if (!(appArgs.FullScreen is null))
+			if (appArgs.FullScreen is not null)
 				appWindow.MainWindow.IsFullScreen = appArgs.FullScreen.Value;
 
 			if (appArgs.NewTab)
@@ -601,20 +601,20 @@ namespace dnSpy.MainApp {
 		}
 
 		void HandleAppArgs2(IAppCommandLineArgs appArgs) {
-			Debug2.Assert(!(exportProvider is null));
+			Debug2.Assert(exportProvider is not null);
 			foreach (var handler in exportProvider.GetExports<IAppCommandLineArgsHandler>().OrderBy(a => a.Value.Order))
 				handler.Value.OnNewArgs(appArgs);
 		}
 
 		IDecompiler? GetDecompiler(string language) {
-			Debug2.Assert(!(exportProvider is null));
+			Debug2.Assert(exportProvider is not null);
 			if (string.IsNullOrEmpty(language))
 				return null;
 
 			var decompilerService = exportProvider.GetExportedValue<IDecompilerService>();
 			if (Guid.TryParse(language, out var guid)) {
 				var lang = decompilerService.Find(guid);
-				if (!(lang is null))
+				if (lang is not null)
 					return lang;
 			}
 
